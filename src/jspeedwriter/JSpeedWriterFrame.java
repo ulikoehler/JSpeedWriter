@@ -13,16 +13,25 @@ package jspeedwriter;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.text.html.HTMLEditorKit;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.ConfigurationFactory;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.filefilter.SuffixFileFilter;
+import org.apache.commons.io.filefilter.TrueFileFilter;
 
 /**
  *
@@ -30,13 +39,20 @@ import org.apache.commons.io.IOUtils;
  */
 public class JSpeedWriterFrame extends javax.swing.JFrame {
 
+    private static final File programDirectory = new File(new File(System.getProperty("user.home")),".jspeedwriter");
+    private static final File configFile = new File(programDirectory, "config");
     private static final char SPACE = ' ';
     private List<String> templateWords = null;
     private List<String> coloredTemplateWords = null;
     private int currentWordIndex = 0;
+    //Configuration options (values initialized in the constructor)
+    private boolean caseSensitive = true;
+    private boolean countWrongWords = true;
+    private int timespan = 60;
+    private int displayed_sentences = 5;
     //Timer
     private Timer countdownTimer = null;
-    private int countdown = TIMESPAN;
+    private int countdown = timespan;
     private boolean timerStarted = false;
     private boolean readyToStart = true;
     //Statistics
@@ -45,11 +61,6 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     private int wrongWords = 0;
     private int writtenCharacters = 0;
     private boolean lastWasEmpty = false; //Prevents that multiple spaces are counted as written characters
-    //Options
-    private static final boolean caseSensitive = true;
-    private static final boolean addCharsOnWrongWords = true;
-    private static final int TIMESPAN = 60;
-    private static final int NUM_DISPLAYED_SENTENCES = 3;
     //Sentence shift variables.
     private List<Integer> sentenceIndices = null;
 
@@ -81,7 +92,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     private void stopTimer() {
         countdownTimer.cancel();
         timerStarted = false;
-        countdown = TIMESPAN;
+        countdown = timespan;
     }
 
     /**
@@ -89,6 +100,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
      */
     private void startWriting() {
         newTextButton.setEnabled(false);
+        templateComboBox.setEnabled(false);
         resetButton.setText("Stop");
         startStatistics();
         startTimer();
@@ -98,7 +110,8 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
         stopTimer();
         readyToStart = false;
         showStatisticsDialog();
-        newTextButton.setEnabled(false);
+        newTextButton.setEnabled(true);
+        templateComboBox.setEnabled(true);
         resetButton.setText("Neustarten");
     }
 
@@ -113,13 +126,36 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     }
 
     private void showStatisticsDialog() {
-        String msg = String.format("<html>%d Zeichen pro Minute - <span color=\"#00FF00\">%d</span> korrekte und <span color=\"#FF0000\">%d</span> falsche Wörter", writtenCharacters / (TIMESPAN / 60), correctWords, wrongWords);
+        String msg = String.format("<html>%d Zeichen pro Minute - <span color=\"#00FF00\">%d</span> korrekte und <span color=\"#FF0000\">%d</span> falsche Wörter", writtenCharacters / (timespan / 60), correctWords, wrongWords);
         JOptionPane.showMessageDialog(this, msg, "Resultat", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /** Creates new form JSpeedWriterFrame */
-    public JSpeedWriterFrame() throws IOException {
+    public JSpeedWriterFrame() throws IOException, ConfigurationException {
         initComponents();
+        //Init the config directory
+        if (!programDirectory.exists()) {
+            programDirectory.mkdir();
+            configFile.createNewFile();
+        }
+        //Load the configuration
+        ConfigurationFactory factory = new ConfigurationFactory("config.xml");
+        Configuration config = factory.getConfiguration();
+        timespan = config.getInt("options.timespan");
+        displayed_sentences = config.getInt("options.displayed_sentences");
+        caseSensitive = config.getBoolean("options.case_sensitive");
+        countWrongWords = config.getBoolean("options.count_wrong_words");
+        //Load the templates
+        String[] templateDirs = config.getStringArray("templates.default");
+        for(String templateDirName : templateDirs) {
+            File templateDir = new File(templateDirName);
+            for(File f : FileUtils.listFiles(templateDir, new SuffixFileFilter(".txt"), TrueFileFilter.INSTANCE)) {
+                String name = templateDir.getAbsoluteFile().getParentFile().toURI().relativize(f.toURI()).getPath();
+                templateComboBox.addItem(name);
+            }
+        }
+        templateComboBox.setSelectedIndex(0);
+        //Init other UI stuff
         loadTemplate();
         writerField.requestFocus();
         updateTemplateField();
@@ -139,20 +175,20 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
         templateField = new javax.swing.JTextPane();
         writerField = new javax.swing.JTextField();
         resetButton = new javax.swing.JButton();
-        topicComboBox = new javax.swing.JComboBox();
+        templateComboBox = new javax.swing.JComboBox();
         newTextButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("JSpeedWriter");
 
-        countdownLabel.setFont(new java.awt.Font("Ubuntu", 0, 24)); // NOI18N
+        countdownLabel.setFont(new java.awt.Font("Ubuntu", 0, 24));
         countdownLabel.setText("60");
 
         templateScrollPane.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         templateScrollPane.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
 
         templateField.setEditorKit(new HTMLEditorKit());
-        templateField.setFont(new java.awt.Font("Ubuntu", 0, 18)); // NOI18N
+        templateField.setFont(new java.awt.Font("Ubuntu", 0, 18));
         templateScrollPane.setViewportView(templateField);
 
         writerField.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -168,7 +204,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
             }
         });
 
-        topicComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Politik", "Roman" }));
+        templateComboBox.setModel(new DefaultComboBoxModel());
 
         newTextButton.setText("Neuer Text");
         newTextButton.addActionListener(new java.awt.event.ActionListener() {
@@ -191,7 +227,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
                         .addGap(30, 30, 30)
                         .addComponent(resetButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(topicComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 179, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(templateComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 411, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(newTextButton)))
                 .addContainerGap())
@@ -203,7 +239,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(countdownLabel)
                     .addComponent(resetButton)
-                    .addComponent(topicComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(templateComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(newTextButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(templateScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 510, Short.MAX_VALUE)
@@ -237,7 +273,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
             } else {
                 setRed(currentWordIndex);
                 wrongWords++;
-                if (addCharsOnWrongWords) {
+                if (countWrongWords) {
                     writtenCharacters += writtenWord.length() + 1;
                 }
             }
@@ -269,7 +305,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_newTextButtonActionPerformed
 
     private void loadTemplate() throws IOException {
-        List<String> textLines = IOUtils.readLines(JSpeedWriterFrame.class.getResourceAsStream("/templates/de/" + topicComboBox.getSelectedItem().toString().toLowerCase() + "/1.txt"));
+        List<String> textLines = IOUtils.readLines(new FileInputStream(templateComboBox.getSelectedItem().toString()));
         String text = Joiner.on("").join(textLines);
         templateWords = Lists.newArrayList(Splitter.on(SPACE).omitEmptyStrings().split(text));
         coloredTemplateWords = Lists.newArrayList(templateWords);
@@ -302,7 +338,7 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     private void updateTemplateField() {
         setGrayBackground(currentWordIndex);
         int minSentenceIndex = getCurrentSentenceId();
-        int maxSentenceIndex = minSentenceIndex + NUM_DISPLAYED_SENTENCES;
+        int maxSentenceIndex = minSentenceIndex + displayed_sentences;
         templateField.setText("<html>" + Joiner.on(SPACE).join(coloredTemplateWords.subList(sentenceIndices.get(minSentenceIndex), sentenceIndices.get(maxSentenceIndex))));
     }
 
@@ -313,11 +349,13 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
 
             public void run() {
-                try {
-                    new JSpeedWriterFrame().setVisible(true);
-                } catch (IOException ex) {
-                    Logger.getLogger(JSpeedWriterFrame.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                    try {
+                        new JSpeedWriterFrame().setVisible(true);
+                    } catch (IOException ex) {
+                        Logger.getLogger(JSpeedWriterFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (ConfigurationException ex) {
+                        Logger.getLogger(JSpeedWriterFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    }
             }
         });
     }
@@ -325,9 +363,9 @@ public class JSpeedWriterFrame extends javax.swing.JFrame {
     private javax.swing.JLabel countdownLabel;
     private javax.swing.JButton newTextButton;
     private javax.swing.JButton resetButton;
+    private javax.swing.JComboBox templateComboBox;
     private javax.swing.JTextPane templateField;
     private javax.swing.JScrollPane templateScrollPane;
-    private javax.swing.JComboBox topicComboBox;
     private javax.swing.JTextField writerField;
     // End of variables declaration//GEN-END:variables
 }

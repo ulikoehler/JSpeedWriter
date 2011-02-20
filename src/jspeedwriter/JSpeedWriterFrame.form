@@ -33,7 +33,7 @@
                       <EmptySpace min="-2" pref="30" max="-2" attributes="0"/>
                       <Component id="resetButton" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="topicComboBox" min="-2" pref="179" max="-2" attributes="0"/>
+                      <Component id="templateComboBox" min="-2" pref="411" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="newTextButton" min="-2" max="-2" attributes="0"/>
                   </Group>
@@ -49,7 +49,7 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="countdownLabel" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="resetButton" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="topicComboBox" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="templateComboBox" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="newTextButton" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace type="unrelated" max="-2" attributes="0"/>
@@ -106,13 +106,10 @@
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="resetButtonActionPerformed"/>
       </Events>
     </Component>
-    <Component class="javax.swing.JComboBox" name="topicComboBox">
+    <Component class="javax.swing.JComboBox" name="templateComboBox">
       <Properties>
-        <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-          <StringArray count="2">
-            <StringItem index="0" value="Politik"/>
-            <StringItem index="1" value="Roman"/>
-          </StringArray>
+        <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.RADConnectionPropertyEditor">
+          <Connection code="new DefaultComboBoxModel()" type="code"/>
         </Property>
       </Properties>
     </Component>

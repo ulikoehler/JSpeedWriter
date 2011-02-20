@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+    Document   : config.xml
+    Created on : 20. Februar 2011, 23:46
+    Author     : uli
+    Description:
+        Purpose of the document follows.
+-->
+
+<configuration>
+    <override>
+        <properties fileName=".jspeedwriter/config" config-optional="true" throwExceptionOnMissing="false" >
+        </properties>
+    </override>
+    <additional>
+        <properties fileName="default-config.properties" config-name="defaults"/>
+    </additional>
+</configuration>
